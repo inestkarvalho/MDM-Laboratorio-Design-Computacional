@@ -1,0 +1,173 @@
+import processing.video.*;
+import gab.opencv.*;
+import java.awt.Rectangle;
+Capture cam;
+OpenCV opencv;
+
+PFont principal, secundario,secundario2;
+PGraphics pg; 
+PImage img; 
+
+float desfoque;
+int transparencia, y, xtit, ytit, ynao, xc, xh;
+
+
+int intervaloProximidade = 100; 
+int ultimoProximidade;
+
+void setup() {
+  size(500, 700,P2D);
+
+  principal = loadFont("CoolveticaRg-Regular-50.vlw");
+  secundario2= loadFont("YuGothicUI-Semilight-20.vlw");
+  
+  secundario  = loadFont("YuGothicUI-Semibold-20.vlw");
+
+  pg= createGraphics(width,height, P2D); 
+  img = loadImage("57.png");
+  
+  desfoque = 5;
+  y = 540;
+  xtit = 220; 
+  ytit = 60;
+  ynao = -5;
+  
+  xc=width/2; 
+  xh=625;
+  
+  cam = new Capture(this, 640, 480);
+  cam.start();
+  opencv = new OpenCV(this, 640, 480);
+  opencv.loadCascade(OpenCV.CASCADE_FRONTALFACE);
+
+  ultimoProximidade = millis();
+}
+
+void draw() {
+  // 1) Atualizar câmara
+  if (cam.available()) {
+    cam.read();
+  }
+
+  // 2) Deteção de face
+  opencv.loadImage(cam);
+  Rectangle[] faces = opencv.detect();
+  
+  boolean caraPerto = false;
+  
+  
+  if (faces != null && faces.length > 0) {
+    // escolhe a maior cara (a mais próxima)
+    Rectangle maior = faces[0];
+    for (int i = 1; i < faces.length; i++) {
+      if (faces[i].width > maior.width) {
+        maior = faces[i];
+      }
+    }
+    
+    // Normaliza a largura da cara em relação à largura da imagem
+    float proporcao = (float)maior.width / cam.width;
+    
+    // Se a proporção for grande, assumimos que a cara está perto
+    if (proporcao > 0.25) {    // ajusta este limiar se quiseres
+      caraPerto = true;
+    }
+  }
+
+  if (caraPerto && millis() - ultimoProximidade > intervaloProximidade) {
+    aproximar();  // equivalente ao key '+'
+    ultimoProximidade = millis();
+  }
+
+ 
+  background(255);
+  
+  pg.beginDraw();
+  pg.imageMode(CENTER);
+  pg.pushMatrix();
+  pg.translate(width/2, height/2);
+  pg.image(img,0,0,500,700);
+  pg.popMatrix();
+  pg.endDraw();
+  
+ // --- grid ---
+  int cellsX = 10;
+  int cellsY = 10;
+
+  int cellsW = width / cellsX;
+  int cellsH = height / cellsY;
+
+  for (int i = 0; i < cellsY; i++) {
+    for (int j = 0; j < cellsX; j++) {
+
+      int wave = int(sin(frameCount * (i + j) * 0.02) * 20);
+
+      // source
+      int sx = j * cellsW;
+      int sy = i * cellsH;
+      int sw = cellsW;
+      int sh = cellsH;
+
+      // destination
+      int dx = j * cellsW + wave;
+      int dy = i * cellsH;
+      int dw = cellsW;
+      int dh = cellsH;
+
+      copy(pg, sx, sy, sw, sh, dx, dy, dw, dh);
+    }
+  }
+ 
+  textAlign(CENTER);
+  textFont(principal);
+  textSize(50);
+  
+  fill(255,0, 0);
+  text("CORRUPTO", xc, y);
+  fill(0, 255, 0);
+  text("HONESTO", xh, y);
+  
+  fill(0);
+  text("%", width-2*ytit, 480);
+  
+  filter(BLUR, desfoque);
+  
+  
+  fill(0); 
+  textAlign(RIGHT);
+  textFont(secundario);
+  text("Estamos rodeados de corrupção", xtit, ytit, 250, 200);
+  text("Não", xtit +50, ynao);
+  
+  textAlign(LEFT);
+  textFont(secundario2);
+  textSize(13);
+  fill(0, transparencia);
+  text("41% acham que a corrupção aumentou, mas é a pontuação mais baixa registada em Portugal", 40, y + 100, 300, 200);
+}
+
+void aproximar() {
+    
+  transparencia +=10;
+    
+  desfoque -= 1;
+ 
+  if (ynao < ytit + 15) {
+    ynao += 10;
+  }
+  
+  xc-=10; 
+  if(xh>width/2){
+    xh-=10;
+  }
+}
+
+void keyPressed() {
+  if (key == 's') {
+    saveFrame("imagem-######.png"); 
+  }
+  // teste manual 
+  if (key == '+') {
+    aproximar();
+  }
+}
