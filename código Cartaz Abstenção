@@ -1,0 +1,197 @@
+import processing.video.*;
+import gab.opencv.*; //OpenCV é o objeto que vai tratar da deteção de faces 
+import java.awt.Rectangle; // OpenCV devolve as faces como retângulos
+
+Capture cam; 
+OpenCV opencv; 
+
+float xt,yt,xa,ya, xtx, ytx, esp,yr,xr;
+String palavra = "XXXXXXXXXX";   // 10 caracteres
+int nChars = palavra.length();
+int totalletras = nChars*10;
+
+int pintar = 8;          // número máximo de letras a pintar
+int pintarAtual = 0;     // número de letras atualmente pintadas 
+
+PFont principal, secundario, secundario2; 
+int vermelho, verde, transparencia; 
+float desfoque;
+String pt1 = "O meu voto";
+String remover = "não";
+String pt2 = "faz a diferença";
+
+
+int intervaloPintar = 200;    // tempo entre cada letra
+int tempoReset = 10000;       // se não houver proximidade --> reset
+
+int ultimoIncremento;         // último instante em que se pintou a letra
+int ultimoEvento;             // ciclo completo das letras 
+boolean cicloCompleto = false;
+
+
+int intervaloProximidade = 100; // Só podes chamar aproximar() outra vez 10s depois da última chamada
+int ultimoProximidade;
+
+void setup() {
+  size(500, 700);
+  
+  cam = new Capture(this, 640, 480); // 640x480 --> rápido e leve, bom para tracking de rostos
+  cam.start();
+  opencv = new OpenCV(this, 640, 480);
+  opencv.loadCascade(OpenCV.CASCADE_FRONTALFACE); //Carrega um classificador em cascata pré-treinado para detetar caras frontais 
+  
+  xt = 40;
+  yt = 60;
+  
+  xa = 440;
+  ya = 660;
+  
+  xtx = 100;
+  ytx = 80;
+  esp = 50;      
+  
+  secundario = loadFont("CoolveticaRg-Regular-50.vlw");
+  secundario2= loadFont("YuGothicUI-Semilight-20.vlw");
+  principal  = loadFont("YuGothicUI-Semibold-20.vlw");
+  
+  vermelho = 255; 
+  verde = 0;
+  desfoque = 5;
+  transparencia = 0;
+  yr = yt;
+  
+  ultimoIncremento = millis();
+  ultimoEvento = millis();
+  ultimoProximidade = millis();
+}
+
+void draw() {
+  // Atualizar câmara
+  if (cam.available()) {
+    cam.read();
+  }
+  
+  // Deteção de face
+  opencv.loadImage(cam);
+  Rectangle[] faces = opencv.detect();
+  
+  boolean caraPerto = false;
+  
+  if (faces != null && faces.length > 0) {
+    // escolhe a maior cara (a mais próxima)
+    Rectangle maior = faces[0];
+    for (int i = 1; i < faces.length; i++) {
+      if (faces[i].width > maior.width) {
+        maior = faces[i];
+      }
+    }
+    
+    // Normaliza a largura da cara em relação à largura da imagem
+    float proporcao = (float)maior.width / cam.width;
+    
+    // Se a proporção for grande, assumimos que a cara está perto
+    // Ajusta este limiar até funcionar como queres
+    if (proporcao > 0.25) {    // ~25% da largura da imagem
+      caraPerto = true;
+    }
+  }
+
+  
+  if (caraPerto && millis() - ultimoProximidade > intervaloProximidade) {
+    aproximar();  // equivalente ao key '+'
+    ultimoProximidade = millis();
+  }
+  
+  background(255);
+  
+  if (cicloCompleto && pintarAtual < pintar) {
+  cicloCompleto = false;
+  ultimoIncremento = millis();
+}
+  
+  if (cicloCompleto == false) {
+    if (pintarAtual < pintar && millis() - ultimoIncremento > intervaloPintar) {
+      pintarAtual++;
+      ultimoIncremento = millis();
+      
+      if (pintarAtual == pintar) { //quando chega às 8 letras o ciclo fica completo 
+        cicloCompleto = true;
+        ultimoEvento = millis(); //marca o tempo para ver se passaram 10s ou não
+      }
+    }
+  } else {
+    if (millis() - ultimoEvento > tempoReset) { // se passou 10 s sem proximidade
+      pintarAtual = 0;
+      cicloCompleto = false;
+      ultimoIncremento = millis();
+    }
+  }
+
+  
+  textFont(secundario);
+  textSize(50);
+  fill(0);
+  text("%", 440, 580);
+      
+  
+textAlign(LEFT);
+
+int contador = 0;
+
+for (int linha = 10; linha >0; linha--) {
+  float y = ytx + linha * esp;
+
+  for (int i = 0; i < palavra.length(); i++) {
+    char ch = palavra.charAt(i);
+
+    
+    float x = xtx + textWidth(palavra.substring(0, i));
+
+    if (contador < pintarAtual) {fill(vermelho, verde, 0);}
+    else {fill(225);}
+
+    text(ch, x, y);
+    contador++;
+  }
+  y+=esp; 
+}
+  
+  filter(BLUR, desfoque);
+  
+  fill(0);
+  textFont(principal);
+  textSize(20);
+  text(pt1, xt, yt);
+  xr = xt + textWidth(pt1) + 5;
+  text(remover , xr, yr);
+  text(pt2, xt + textWidth(pt1) + textWidth(remover) + 10, yt);
+  textAlign(RIGHT);
+  textFont(secundario2);
+  textSize(15);
+  fill(0, transparencia);
+  text("Menos de 1% decidiu as legislativas de 2024", xa, ya);
+}
+
+
+void aproximar() {
+  vermelho -= 10;
+  verde +=10;
+  desfoque -= 0.5; 
+  transparencia += 10;
+  yr -= 5;
+  
+  if (pintar < 40) {
+    pintar ++;
+  }
+  ultimoEvento = millis(); 
+}
+
+void keyPressed() {
+  if (key == 's') {
+    saveFrame("imagem-######.png"); 
+  }
+  
+  if (key == '+') { //manual 
+    aproximar();
+  }
+}
