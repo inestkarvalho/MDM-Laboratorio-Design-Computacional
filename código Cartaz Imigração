@@ -1,0 +1,284 @@
+import processing.video.*;
+import gab.opencv.*;
+import java.awt.Rectangle;
+
+int xtex, ytex, esp, xt, yt, larg, vermelho, verde, transparencia;
+float xa, ya, xpt1, desfoque;
+
+PFont principal, secundario, secundario2;
+String pt1 = "Imigrantes", aparecer = "não", pt2 = "roubam empregos";
+
+// percentagens
+int perc1, perc2, perc3;
+
+// alturas desenhadas
+float alt1Atual, alt2Atual, alt3Atual;
+
+int idxLim = 0;
+boolean colidiu = false;
+int ultimacontagem = 0;
+int intervaloTroca = 800;
+
+int v1 = 1, v2 = 1, v3 = 1, add = 1;
+
+// conjuntos de limites 
+int[][] mins = {
+  {85, 75, 80},
+  {88, 78, 82},
+  {90, 80, 85}
+};
+int[][] maxs = {
+  {95, 85, 90},
+  {97, 88, 92},
+  {99, 90, 95}
+};
+
+boolean modoParado = false;
+int perc1f = 41, perc2f = 23, perc3f = 31;
+
+int tempoReset  = 10000;  // 10s sem proximidade
+int ultimoEvento;
+
+boolean subir = false;       // equivalente ao "cicloCompleto" 
+boolean reset = false;   // garante que o reset para 0 só acontece uma vez por ciclo
+
+Capture cam;
+OpenCV opencv;
+
+int intervaloProximidade = 150;
+int ultimoProximidade;
+
+void setup() {
+  size(500, 700);
+
+  cam = new Capture(this, 640, 480);
+  cam.start();
+  opencv = new OpenCV(this, 640, 480);
+  opencv.loadCascade(OpenCV.CASCADE_FRONTALFACE);
+
+  xtex = 20;
+  ytex = 225;
+  esp  = 90;
+  xt   = 460;
+  yt   = 640;
+  ya   = 720;
+
+  desfoque = 5;
+
+  secundario  = loadFont("CoolveticaRg-Regular-50.vlw");
+  secundario2 = loadFont("YuGothicUI-Semilight-20.vlw");
+  principal   = loadFont("YuGothicUI-Semibold-20.vlw");
+
+  textSize(20);
+  xpt1 = xt - textWidth(pt2) - 15;
+
+  larg = 60;
+  vermelho = 255;
+  verde = 0;
+  transparencia = 0;
+
+  perc1 = 90;
+  perc2 = 80;
+  perc3 = 85;
+
+  alt1Atual = map(perc1, 0, 100, 0, 445);
+  alt2Atual = map(perc2, 0, 100, 0, 445);
+  alt3Atual = map(perc3, 0, 100, 0, 445);
+
+  idxLim = int(random(3));
+  v1 = 1;
+  v2 = 1;
+  v3 = 1;
+
+  ultimacontagem = millis();
+  ultimoEvento = millis();
+  ultimoProximidade = millis();
+}
+
+void draw() {
+
+  if (cam.available()){ cam.read();}
+  opencv.loadImage(cam);
+  Rectangle[] faces = opencv.detect();
+
+  boolean caraPerto = false;
+  if (faces != null && faces.length > 0) {
+    Rectangle maior = faces[0];
+    for (int i = 1; i < faces.length; i++) {
+      if (faces[i].width > maior.width) {maior = faces[i];}
+    }
+
+    float proporcao = (float) maior.width / cam.width;
+    if (proporcao > 0.25) {
+      caraPerto = true;
+    }
+  }
+
+  if (caraPerto && millis() - ultimoProximidade > intervaloProximidade) {
+    aproximar();
+    ultimoProximidade = millis();
+  }
+
+  movimento();
+
+  background(255);
+  textAlign(LEFT);
+
+  pushMatrix();
+  translate(135, 550);
+  rotate(-HALF_PI);
+
+  xtex = -10;
+  ytex = 45;
+
+  noStroke();
+  fill(225);
+  rect(xtex - 20, ytex - 45, 445, larg);
+  rect(xtex - 20, ytex - 45 + esp, 445, larg);
+  rect(xtex - 20, ytex - 45 + 2 * esp, 445, larg);
+
+  fill(vermelho, verde, 0);
+  rect(xtex - 20, ytex - 45, alt1Atual, larg);
+  rect(xtex - 20, ytex - 45 + esp, alt2Atual, larg);
+  rect(xtex - 20, ytex - 45 + 2 * esp, alt3Atual, larg);
+
+  fill(0);
+  textFont(secundario);
+  textSize(45);
+  text("Agricultura e Pesca", xtex, ytex);
+  text("Construção Civil", xtex, ytex + esp);
+  text("Turismo", xtex, ytex + 2 * esp);
+
+  popMatrix();
+
+  textFont(principal);
+  textSize(20);
+  text("%", 400, 140);
+  text("0", 400, 580);
+
+  filter(BLUR, desfoque);
+
+  textAlign(RIGHT);
+  fill(0);
+  text(pt1, xpt1, yt);
+
+  xa = xt - textWidth(pt2) - 5;
+  text(aparecer, xa, ya);
+  text(pt2, xt, yt);
+
+  textAlign(CENTER);
+  textFont(secundario2);
+  textSize(15);
+  fill(0, transparencia);
+  text("Cerca de 40% dos imigrantes licenciados ocupam cargos abaixo das suas qualificações", width/2 - 170, 40, 350, 100);
+}
+
+void movimento() {
+
+  if (modoParado) {
+    if (!subir) {
+      if (perc1 > perc1f) {
+        perc1 -= add;
+      }
+      if (perc2 > perc2f) {
+        perc2 -= add;
+      }
+      if (perc3 > perc3f) {
+        perc3 -= add;
+      }
+
+      // quando já chegou aos alvos, começa a contar 10s
+      if (perc1 == perc1f && perc2 == perc2f && perc3 == perc3f) {
+        // se passaram 10s sem proximidade: inicia o reset (0 -> subir)
+        if (millis() - ultimoEvento > tempoReset) {
+          subir = true;
+          reset = false;
+        }
+      }
+    }
+
+    if (subir) {
+      if (!reset) {
+        perc1 = 0;
+        perc2 = 0;
+        perc3 = 0;
+        reset = true;
+      }
+
+      if (perc1 < perc1f) perc1+=add;
+      if (perc2 < perc2f) perc2+= add;
+      if (perc3 < perc3f) perc3 +=add;
+
+      // quando termina a subida, volta ao estado "ciclo completo" e reinicia o tempo
+      if (perc1 == perc1f && perc2 == perc2f && perc3 == perc3f) {
+        subir = false;
+        ultimoEvento = millis(); // começa a contar 10s novamente a partir daqui
+      }
+    }
+
+    // atualiza alturas
+    alt1Atual = map(perc1, 0, 100, 0, 445);
+    alt2Atual = map(perc2, 0, 100, 0, 445);
+    alt3Atual = map(perc3, 0, 100, 0, 445);
+  } else { //oscilações
+
+    int min1 = mins[idxLim][0], max1 = maxs[idxLim][0];
+    int min2 = mins[idxLim][1], max2 = maxs[idxLim][1];
+    int min3 = mins[idxLim][2], max3 = maxs[idxLim][2];
+
+    boolean[] limites = new boolean[] {
+      (perc1 >= max1 || perc1 <= min1),
+      (perc2 >= max2 || perc2 <= min2),
+      (perc3 >= max3 || perc3 <= min3)
+    };
+
+    if (!colidiu && (limites[0] || limites[1] || limites[2])) {
+      if (limites[0]) v1 *= -1;
+      if (limites[1]) v2 *= -1;
+      if (limites[2]) v3 *= -1;
+      colidiu = true;
+      ultimacontagem = millis();
+    }
+
+    if (colidiu && millis() - ultimacontagem >= intervaloTroca) {
+      idxLim = int(random(3));
+      colidiu = false;
+    }
+
+    perc1 += v1 ;
+    perc2 += v2 ;
+    perc3 += v3 ;
+
+    perc1 = constrain(perc1, min1, max1);
+    perc2 = constrain(perc2, min2, max2);
+    perc3 = constrain(perc3, min3, max3);
+
+    alt1Atual = map(perc1, 0, 100, 0, 445);
+    alt2Atual = map(perc2, 0, 100, 0, 445);
+    alt3Atual = map(perc3, 0, 100, 0, 445);
+  }
+}
+
+void aproximar() {
+
+  if (xpt1 > xa - 35) {xpt1 -= 5;}
+  if (ya > yt + 1) { ya -= 5;} 
+
+  desfoque -= 1;
+  verde += 10;
+  vermelho -= 10;
+  transparencia += 10;
+
+  modoParado = true;
+  ultimoEvento = millis();
+
+  // cancela qualquer subida/reset em curso
+  subir = false;
+  reset = false;
+  colidiu = false;
+}
+
+void keyPressed() {
+  if (key == 's') { saveFrame("imagem-######.png"); }
+  if (key == '+') { aproximar(); }
+}
