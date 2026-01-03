@@ -10,8 +10,8 @@ String palavra = "XXXXXXXXXX";   // 10 caracteres
 int nChars = palavra.length();
 int totalletras = nChars*10;
 
-int pintar = 8;          // número máximo de letras a pintar
-int pintarAtual = 0;     // número de letras atualmente pintadas 
+int pintar = 8;      
+int pintarAtual = 0;   
 
 PFont principal, secundario, secundario2; 
 int vermelho, verde, transparencia; 
@@ -22,14 +22,14 @@ String pt2 = "faz a diferença";
 
 
 int intervaloPintar = 200;    // tempo entre cada letra
-int tempoReset = 10000;       // se não houver proximidade --> reset
+int tempoReset = 10000;     // reset 10s 
 
 int ultimoIncremento;         // último instante em que se pintou a letra
-int ultimoEvento;             // ciclo completo das letras 
+int ultimoEvento;             
 boolean cicloCompleto = false;
 
 
-int intervaloProximidade = 100; // Só podes chamar aproximar() outra vez 10s depois da última chamada
+int intervaloProximidade = 10000; // Só podes chamar aproximar() outra vez 10s depois da última chamada
 int ultimoProximidade;
 
 void setup() {
@@ -38,7 +38,7 @@ void setup() {
   cam = new Capture(this, 640, 480); // 640x480 --> rápido e leve, bom para tracking de rostos
   cam.start();
   opencv = new OpenCV(this, 640, 480);
-  opencv.loadCascade(OpenCV.CASCADE_FRONTALFACE); //Carrega um classificador em cascata pré-treinado para detetar caras frontais 
+  opencv.loadCascade(OpenCV.CASCADE_FRONTALFACE); //Carrega um classificador em cascata pré-treinado 
   
   xt = 40;
   yt = 60;
@@ -77,6 +77,7 @@ void draw() {
   
   boolean caraPerto = false;
   
+  //ajuda do Chat GPT daqui ...
   if (faces != null && faces.length > 0) {
     // escolhe a maior cara (a mais próxima)
     Rectangle maior = faces[0];
@@ -96,6 +97,7 @@ void draw() {
     }
   }
 
+  // ... até aqui
   
   if (caraPerto && millis() - ultimoProximidade > intervaloProximidade) {
     aproximar();  // equivalente ao key '+'
@@ -114,7 +116,7 @@ void draw() {
       pintarAtual++;
       ultimoIncremento = millis();
       
-      if (pintarAtual == pintar) { //quando chega às 8 letras o ciclo fica completo 
+      if (pintarAtual == pintar) {
         cicloCompleto = true;
         ultimoEvento = millis(); //marca o tempo para ver se passaram 10s ou não
       }
@@ -127,13 +129,11 @@ void draw() {
     }
   }
 
-  
   textFont(secundario);
   textSize(50);
   fill(0);
   text("%", 440, 580);
       
-  
 textAlign(LEFT);
 
 int contador = 0;
@@ -143,8 +143,6 @@ for (int linha = 10; linha >0; linha--) {
 
   for (int i = 0; i < palavra.length(); i++) {
     char ch = palavra.charAt(i);
-
-    
     float x = xtx + textWidth(palavra.substring(0, i));
 
     if (contador < pintarAtual) {fill(vermelho, verde, 0);}
@@ -172,7 +170,6 @@ for (int linha = 10; linha >0; linha--) {
   text("Menos de 1% decidiu as legislativas de 2024", xa, ya);
 }
 
-
 void aproximar() {
   vermelho -= 10;
   verde +=10;
@@ -187,11 +184,6 @@ void aproximar() {
 }
 
 void keyPressed() {
-  if (key == 's') {
-    saveFrame("imagem-######.png"); 
-  }
-  
-  if (key == '+') { //manual 
-    aproximar();
-  }
+  if (key == 's') {saveFrame("imagem-######.png"); }
+  if (key == '+') {  aproximar(); } //manual 
 }
