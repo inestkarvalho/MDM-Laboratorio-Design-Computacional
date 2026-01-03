@@ -2,23 +2,16 @@ import processing.video.*;
 import gab.opencv.*;
 import java.awt.Rectangle;
 
-int xtex, ytex, esp, xt, yt, larg, vermelho, verde, transparencia;
-float xa, ya, xpt1, desfoque;
+int xtex, ytex, esp, xt, yt, larg, vermelho, verde, transparencia, perc1, perc2, perc3;
+float xa, ya, xpt1, desfoque, alt1Atual, alt2Atual, alt3Atual;
 
 PFont principal, secundario, secundario2;
 String pt1 = "Imigrantes", aparecer = "não", pt2 = "roubam empregos";
-
-// percentagens
-int perc1, perc2, perc3;
-
-// alturas desenhadas
-float alt1Atual, alt2Atual, alt3Atual;
 
 int idxLim = 0;
 boolean colidiu = false;
 int ultimacontagem = 0;
 int intervaloTroca = 800;
-
 int v1 = 1, v2 = 1, v3 = 1, add = 1;
 
 // conjuntos de limites 
@@ -39,8 +32,8 @@ int perc1f = 41, perc2f = 23, perc3f = 31;
 int tempoReset  = 10000;  // 10s sem proximidade
 int ultimoEvento;
 
-boolean subir = false;       // equivalente ao "cicloCompleto" 
-boolean reset = false;   // garante que o reset para 0 só acontece uma vez por ciclo
+boolean subir = false;   
+boolean reset = false;  
 
 Capture cam;
 OpenCV opencv;
@@ -58,10 +51,10 @@ void setup() {
 
   xtex = 20;
   ytex = 225;
-  esp  = 90;
-  xt   = 460;
-  yt   = 640;
-  ya   = 720;
+  esp = 90;
+  xt = 460;
+  yt = 640;
+  ya = 720;
 
   desfoque = 5;
 
@@ -102,6 +95,8 @@ void draw() {
   Rectangle[] faces = opencv.detect();
 
   boolean caraPerto = false;
+  
+  //ajuda do Chat GPT daqui ...
   if (faces != null && faces.length > 0) {
     Rectangle maior = faces[0];
     for (int i = 1; i < faces.length; i++) {
@@ -113,6 +108,8 @@ void draw() {
       caraPerto = true;
     }
   }
+  
+  // ... até aqui
 
   if (caraPerto && millis() - ultimoProximidade > intervaloProximidade) {
     aproximar();
@@ -187,7 +184,6 @@ void movimento() {
         perc3 -= add;
       }
 
-      // quando já chegou aos alvos, começa a contar 10s
       if (perc1 == perc1f && perc2 == perc2f && perc3 == perc3f) {
         // se passaram 10s sem proximidade: inicia o reset (0 -> subir)
         if (millis() - ultimoEvento > tempoReset) {
@@ -205,9 +201,9 @@ void movimento() {
         reset = true;
       }
 
-      if (perc1 < perc1f) perc1+=add;
+      if (perc1 < perc1f) perc1+= add;
       if (perc2 < perc2f) perc2+= add;
-      if (perc3 < perc3f) perc3 +=add;
+      if (perc3 < perc3f) perc3 += add;
 
       // quando termina a subida, volta ao estado "ciclo completo" e reinicia o tempo
       if (perc1 == perc1f && perc2 == perc2f && perc3 == perc3f) {
@@ -276,6 +272,11 @@ void aproximar() {
   subir = false;
   reset = false;
   colidiu = false;
+}
+
+void keyPressed() {
+  if (key == 's') { saveFrame("imagem-######.png"); }
+  if (key == '+') { aproximar(); }
 }
 
 void keyPressed() {
